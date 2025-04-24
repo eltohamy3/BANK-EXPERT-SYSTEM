@@ -2,173 +2,222 @@
 % BANK EXPERT SYSTEM CORE
 % ----------------------------
 
+:- dynamic customer/6.
+:- dynamic transaction/5.
+:- dynamic account/4.
+:- dynamic user/3.
+
 % Main entry point
 start_bank_expert :-
-    write('Welcome to Bank Expert System'), nl,
-    write('Available services:'), nl,
-    write('1. Account recommendation'), nl,
-    write('2. Fraud detection'), nl,
-    write('3. Investment advice'), nl,
-    write('4. Customer service routing'), nl,
-    write('5. Transaction validation'), nl,
-    write('Select service (1-5): '),
+    write('=== BANK EXPERT SYSTEM ==='), nl,
+    initialize_system,
+    authenticate_user.
+
+% Initialize with sample data
+initialize_system :-
+    retractall(customer(_,_,_,_,_,_)),
+    retractall(account(_,_,_,_)),
+    retractall(transaction(_,_,_,_,_)),
+    retractall(user(_,_,_)),
+    
+    % Sample customers
+    assert(customer('cust001', 'John Doe', '1980-05-15', '123 Main St', '555-1234', verified)),
+    assert(customer('cust002', 'Jane Smith', '1990-08-22', '456 Oak Ave', '555-5678', verified)),
+    
+    % Sample accounts
+    assert(account('SAV001', 'cust001', savings, 5000)),
+    assert(account('CHK001', 'cust001', checking, 2500)),
+    assert(account('SAV002', 'cust002', savings, 15000)),
+    
+    % Sample users
+    assert(user(admin, 'bank123', [admin])),
+    assert(user(manager, 'secure456', [manager,reports])),
+    assert(user(staff, 'staff789', [staff])).
+
+% Authentication system
+authenticate_user :-
+    write('Please authenticate'), nl,
+    write('Username: '), read(Username),
+    write('Password: '), read(Password),
+    (user(Username, Password, _) -> 
+        show_main_menu(Username)
+    ;
+        write('Invalid credentials. Try again.'), nl,
+        authenticate_user
+    ).
+
+% Main menu
+show_main_menu(Username) :-
+    nl, write('=== MAIN MENU ==='), nl,
+    write('Logged in as: '), write(Username), nl, nl,
+    write('1. Customer Management'), nl,
+    write('2. Account Services'), nl,
+    write('3. Transaction Processing'), nl,
+    write('4. Fraud Detection'), nl,
+    write('5. Investment Advisory'), nl,
+    write('6. Reports & Analytics'), nl,
+    write('0. Logout'), nl,
+    write('Select option (0-6): '),
     read(Choice),
-    handle_service(Choice).
+    handle_service(Choice, Username).
+
+% Service routing
+handle_service(0, _) :- 
+    write('Logging out...'), nl, nl,
+    start_bank_expert.
+
+handle_service(1, User) :- customer_management(User).
+handle_service(2, User) :- account_services(User).
+handle_service(3, User) :- transaction_processing(User).
+handle_service(4, User) :- fraud_detection(User).
+handle_service(5, User) :- investment_advisory(User).
+handle_service(6, User) :- reports_analytics(User).
+handle_service(_, User) :- 
+    write('Invalid choice'), nl, 
+    show_main_menu(User).
 
 % ----------------------------
-% SERVICE HANDLERS
+% CUSTOMER MANAGEMENT MODULE
 % ----------------------------
 
-handle_service(1) :- account_recommendation.
-handle_service(2) :- fraud_detection.
-handle_service(3) :- investment_advice.
-handle_service(4) :- customer_service_routing.
-handle_service(5) :- transaction_validation.
-handle_service(_) :- write('Invalid choice'), nl, start_bank_expert.
+customer_management(User) :-
+    check_access(User, [admin,manager]),
+    nl, write('=== CUSTOMER MANAGEMENT ==='), nl,
+    write('1. Add Customer'), nl,
+    write('2. View Customer'), nl,
+    write('3. Search Customers'), nl,
+    write('4. Update Customer'), nl,
+    write('5. Back to Main Menu'), nl,
+    write('Select option: '),
+    read(Choice),
+    (Choice =:= 5 -> show_main_menu(User) ; handle_customer_choice(Choice, User)).
+
+handle_customer_choice(1, User) :- add_customer, customer_management(User).
+handle_customer_choice(2, User) :- view_customer, customer_management(User).
+handle_customer_choice(3, User) :- search_customers, customer_management(User).
+handle_customer_choice(4, User) :- update_customer, customer_management(User).
+handle_customer_choice(_, User) :- 
+    write('Invalid choice'), nl, 
+    customer_management(User).
+
+add_customer :-
+    write('Enter Customer ID: '), read(ID),
+    write('Full Name: '), read(Name),
+    write('Date of Birth (YYYY-MM-DD): '), read(DOB),
+    write('Address: '), read(Address),
+    write('Phone: '), read(Phone),
+    write('KYC Status (verified/unverified): '), read(KYC),
+    assert(customer(ID, Name, DOB, Address, Phone, KYC)),
+    write('Customer added successfully!'), nl.
+
+view_customer :-
+    write('Enter Customer ID: '), read(ID),
+    (customer(ID, Name, DOB, Address, Phone, KYC) ->
+        nl, write('=== CUSTOMER DETAILS ==='), nl,
+        write('ID: '), write(ID), nl,
+        write('Name: '), write(Name), nl,
+        write('DOB: '), write(DOB), nl,
+        write('Address: '), write(Address), nl,
+        write('Phone: '), write(Phone), nl,
+        write('KYC Status: '), write(KYC), nl
+    ;
+        write('Customer not found!'), nl
+    ).
 
 % ----------------------------
-% ACCOUNT RECOMMENDATION MODULE
+% ACCOUNT SERVICES MODULE
 % ----------------------------
 
-account_recommendation :-
-    write('=== ACCOUNT RECOMMENDATION ==='), nl,
-    ask_customer_profile(CustomerType, ActivityLevel, Balance),
-    recommend_account(CustomerType, ActivityLevel, Balance).
+account_services(User) :-
+    check_access(User, [admin,manager,staff]),
+    nl, write('=== ACCOUNT SERVICES ==='), nl,
+    write('1. Open Account'), nl,
+    write('2. Close Account'), nl,
+    write('3. View Account'), nl,
+    write('4. List All Accounts'), nl,
+    write('5. Back to Main Menu'), nl,
+    write('Select option: '),
+    read(Choice),
+    (Choice =:= 5 -> show_main_menu(User) ; handle_account_choice(Choice, User)).
 
-ask_customer_profile(CustomerType, ActivityLevel, Balance) :-
-    write('Customer type (individual/business/student/senior): '),
-    read(CustomerType),
-    write('Transaction activity level (low/medium/high): '),
-    read(ActivityLevel),
-    write('Average monthly balance: '),
-    read(Balance).
+handle_account_choice(1, User) :- open_account, account_services(User).
+handle_account_choice(2, User) :- close_account, account_services(User).
+handle_account_choice(3, User) :- view_account, account_services(User).
+handle_account_choice(4, User) :- list_accounts, account_services(User).
+handle_account_choice(_, User) :- 
+    write('Invalid choice'), nl, 
+    account_services(User).
 
-recommend_account(individual, low, Balance) :-
-    Balance < 1000,
-    write('Recommended: Basic Savings Account with no fees').
+open_account :-
+    write('Enter Customer ID: '), read(CustomerID),
+    (customer(CustomerID, _, _, _, _, _) ->
+        write('Account Type (savings/checking/business): '), read(Type),
+        write('Initial Deposit: '), read(Balance),
+        generate_account_number(Type, AccountNumber),
+        assert(account(AccountNumber, CustomerID, Type, Balance)),
+        write('Account opened successfully! Number: '), write(AccountNumber), nl
+    ;
+        write('Customer not found!'), nl
+    ).
 
-recommend_account(individual, medium, Balance) :-
-    Balance >= 1000, Balance < 5000,
-    write('Recommended: Premium Checking with debit rewards').
-
-recommend_account(business, high, _) :-
-    write('Recommended: Business Advantage Account with unlimited transactions').
-
-recommend_account(student, _, _) :-
-    write('Recommended: Student Account with no monthly fees').
-
-% ----------------------------
-% FRAUD DETECTION MODULE
-% ----------------------------
-
-fraud_detection :-
-    write('=== FRAUD DETECTION ==='), nl,
-    write('Enter transaction details'), nl,
-    ask_transaction_details(Amount, Location, Recipient, Frequency),
-    analyze_fraud_risk(Amount, Location, Recipient, Frequency).
-
-ask_transaction_details(Amount, Location, Recipient, Frequency) :-
-    write('Transaction amount: '),
-    read(Amount),
-    write('Transaction location: '),
-    read(Location),
-    write('Recipient (known/new): '),
-    read(Recipient),
-    write('Transaction frequency (first/repeat): '),
-    read(Frequency).
-
-analyze_fraud_risk(Amount, Location, Recipient, Frequency) :-
-    risk_score(Amount, Location, Recipient, Frequency, Score),
-    (Score > 70 ->
-        write('HIGH RISK: Transaction flagged for review'), nl,
-        write('Recommended action: Contact customer and verify transaction');
-     Score > 40 ->
-        write('MEDIUM RISK: Additional verification recommended');
-     write('LOW RISK: Transaction appears normal')).
-
-risk_score(Amount, _, new, first, Score) :-
-    Score is min(100, Amount / 1000 * 70).
-risk_score(Amount, foreign, _, _, Score) :-
-    Score is min(100, Amount / 2000 * 80).
-risk_score(_, _, _, _, 20). % Default low risk
+generate_account_number(Type, AccountNumber) :-
+    get_time(TimeStamp),
+    format_time(atom(RandomPart), '%S%M', TimeStamp),
+    atom_concat(Type, RandomPart, AccountNumber).
 
 % ----------------------------
-% INVESTMENT ADVICE MODULE
+% TRANSACTION PROCESSING MODULE
 % ----------------------------
 
-investment_advice :-
-    write('=== INVESTMENT ADVICE ==='), nl,
-    ask_investment_profile(RiskTolerance, Horizon, Amount),
-    recommend_investment(RiskTolerance, Horizon, Amount).
+transaction_processing(User) :-
+    check_access(User, [admin,manager,staff]),
+    nl, write('=== TRANSACTION PROCESSING ==='), nl,
+    write('1. Process Deposit'), nl,
+    write('2. Process Withdrawal'), nl,
+    write('3. Process Transfer'), nl,
+    write('4. View Transaction History'), nl,
+    write('5. Back to Main Menu'), nl,
+    write('Select option: '),
+    read(Choice),
+    (Choice =:= 5 -> show_main_menu(User) ; handle_transaction_choice(Choice, User)).
 
-ask_investment_profile(RiskTolerance, Horizon, Amount) :-
-    write('Risk tolerance (low/medium/high): '),
-    read(RiskTolerance),
-    write('Investment horizon (short/medium/long): '),
-    read(Horizon),
-    write('Investment amount: '),
-    read(Amount).
+handle_transaction_choice(1, User) :- process_deposit, transaction_processing(User).
+handle_transaction_choice(2, User) :- process_withdrawal, transaction_processing(User).
+handle_transaction_choice(3, User) :- process_transfer, transaction_processing(User).
+handle_transaction_choice(4, User) :- view_transactions, transaction_processing(User).
+handle_transaction_choice(_, User) :- 
+    write('Invalid choice'), nl, 
+    transaction_processing(User).
 
-recommend_investment(low, short, _) :-
-    write('Recommended: Money market funds or CDs').
-
-recommend_investment(low, long, _) :-
-    write('Recommended: Government bonds or index funds').
-
-recommend_investment(high, long, Amount) :-
-    Amount >= 10000,
-    write('Recommended: Diversified stock portfolio with international exposure').
-
-% ----------------------------
-% CUSTOMER SERVICE ROUTING
-% ----------------------------
-
-customer_service_routing :-
-    write('=== CUSTOMER SERVICE ROUTING ==='), nl,
-    write('Select issue category:'), nl,
-    write('1. Account issues'), nl,
-    write('2. Card problems'), nl,
-    write('3. Loan inquiries'), nl,
-    write('4. Fraud concerns'), nl,
-    write('5. General questions'), nl,
-    read(Category),
-    route_to_department(Category).
-
-route_to_department(1) :- write('Routing to Account Services: 1-800-ACC-1234').
-route_to_department(2) :- write('Routing to Card Department: 1-800-CRD-5678').
-route_to_department(3) :- write('Routing to Loan Officers: 1-800-LON-9012').
-route_to_department(4) :- write('URGENT: Routing to Fraud Department: 1-800-FRD-3456').
-route_to_department(5) :- write('Routing to Customer Service: 1-800-BNK-7890').
+process_deposit :-
+    write('Account Number: '), read(Account),
+    write('Amount: '), read(Amount),
+    (account(Account, CustomerID, Type, Balance) ->
+        NewBalance is Balance + Amount,
+        retract(account(Account, CustomerID, Type, Balance)),
+        assert(account(Account, CustomerID, Type, NewBalance)),
+        get_time(TimeStamp),
+        assert(transaction(Account, deposit, Amount, TimeStamp, 'completed')),
+        write('Deposit successful. New balance: '), write(NewBalance), nl
+    ;
+        write('Account not found!'), nl
+    ).
 
 % ----------------------------
-% TRANSACTION VALIDATION
+% HELPER PREDICATES
 % ----------------------------
 
-transaction_validation :-
-    write('=== TRANSACTION VALIDATION ==='), nl,
-    write('Enter account type (checking/savings/business): '),
-    read(AccountType),
-    write('Enter transaction amount: '),
-    read(Amount),
-    write('Enter current balance: '),
-    read(Balance),
-    validate_transaction(AccountType, Amount, Balance).
+check_access(User, RequiredRoles) :-
+    user(User, _, Roles),
+    (intersection(Roles, RequiredRoles, []) ->
+        write('Access denied!'), nl, show_main_menu(User)
+    ;
+        true
+    ).
 
-validate_transaction(checking, Amount, Balance) :-
-    Balance >= Amount,
-    write('Transaction approved for checking account').
+intersection([], _, []).
+intersection([X|Xs], Ys, [X|Zs]) :- member(X, Ys), intersection(Xs, Ys, Zs).
+intersection([X|Xs], Ys, Zs) :- \+ member(X, Ys), intersection(Xs, Ys, Zs).
 
-validate_transaction(savings, Amount, Balance) :-
-    Balance - Amount >= 100, % Maintain minimum balance
-    write('Transaction approved for savings account').
-
-validate_transaction(business, Amount, Balance) :-
-    Balance >= Amount * 1.1, % Business accounts keep 10% buffer
-    write('Transaction approved for business account').
-
-% ----------------------------
-% UTILITIES
-% ----------------------------
-
-% Run the expert system
+% Start the system
 :- initialization(start_bank_expert).
