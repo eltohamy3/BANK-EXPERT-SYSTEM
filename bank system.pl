@@ -22,7 +22,6 @@ initialize_system :-
     assert(customer('cust001', 'John Doe', '1980-05-15', '123-Main-St', '555-1234', verified, 15000)),
     assert(customer('cust002', 'Jane Smith', '1990-08-22', '456-Oak-Ave', '555-5678', verified, 5000)),
     assert(customer('cust003', 'Bahy', '1990-08-22', '456-asd-Ave', '555-5678', verified, 10000)),
-    
     % Sample users
     assert(user(admin, 'bank', [admin])),
     assert(user(manager, 'secure456', [manager,reports])),
@@ -46,10 +45,9 @@ show_main_menu(Username) :-
     write('Logged in as: '), write(Username), nl, nl,
     write('1. Customer Management'), nl,
     write('2. Transaction Processing'), nl,
-    write('3. Fraud Detection'), nl,
-    write('4. Reports & Analytics'), nl,
+    write('3. Reports & Analytics'), nl,
     write('0. Logout'), nl,
-    write('Select option (0-4): '),
+    write('Select option (0-3): '),
     read(Choice),
     handle_service(Choice, Username).
 
@@ -60,8 +58,7 @@ handle_service(0, _) :-
 
 handle_service(1, User) :- customer_management(User).
 handle_service(2, User) :- transaction_processing(User).
-handle_service(3, User) :- fraud_detection(User).
-handle_service(4, User) :- reports_analytics(User).
+handle_service(3, User) :- reports_analytics(User).
 handle_service(_, User) :- 
     write('Invalid choice'), nl, 
     show_main_menu(User).
@@ -331,32 +328,75 @@ process_transfer :-
         write('One or both customers not found!'), nl
     ).
 
+# view_transactions :-
+#     nl, write('=== TRANSACTION HISTORY OPTIONS ==='), nl,
+#     write('1. View all transactions'), nl,
+#     write('2. View transactions for specific customer'), nl,
+#     write('3. Back to Transaction Menu'), nl,
+#     write('Select option: '),
+#     read(Choice),
+#     (   Choice == 1 -> show_all_transactions
+#     ;   Choice == 2 -> show_customer_transactions
+#     ;   Choice == 3 -> true
+#     ;   write('Invalid choice'), nl, view_transactions
+#     ).
+
+# show_all_transactions :-
+#     findall(transaction(Customer, Type, Amount, TimeStamp, Status),
+#             transaction(Customer, Type, Amount, TimeStamp, Status),
+#             Transactions),
+#     (   Transactions == []
+#     ->  write('No transactions found.'), nl
+#     ;   format_transactions(Transactions)
+#     ).
+
+# show_customer_transactions :-
+#     write('Enter Customer ID: '), read(CustomerID),
+#     findall(transaction(CustomerID, Type, Amount, TimeStamp, Status),
+#             transaction(CustomerID, Type, Amount, TimeStamp, Status),
+#             Transactions),
+#     (   Transactions == []
+#     ->  write('No transactions found for customer '), write(CustomerID), nl
+#     ;   format_transactions(Transactions)
+#     ).
+# format_transactions([]).
+# format_transactions([transaction(Customer, Type, Amount, TimeStamp, Status)|Rest]) :-
+#     parse_time(TimeStamp, Stamp),
+#     stamp_date_time(Stamp, DateTime, local),
+#     format_time(atom(FormattedTime), '%Y-%m-%d %H:%M:%S', DateTime),
+#     write('Customer: '), write(Customer),
+#     write(' | Type: '), write(Type),
+#     write(' | Amount: $'), format('~2f', [Amount]),
+#     write(' | Time: '), write(FormattedTime),
+#     write(' | Status: '), write(Status), nl,
+#     format_transactions(Rest).
+
+% Updated view_transactions predicate
 view_transactions :-
     nl, write('=== TRANSACTION HISTORY OPTIONS ==='), nl,
     write('1. View all transactions'), nl,
     write('2. View transactions for specific customer'), nl,
-    write('3. View transactions by type'), nl,
-    write('4. View transactions by date range'), nl,
-    write('5. Back to Transaction Menu'), nl,
+    write('3. Back to Transaction Menu'), nl,
     write('Select option: '),
     read(Choice),
     (   Choice == 1 -> show_all_transactions
     ;   Choice == 2 -> show_customer_transactions
-    ;   Choice == 3 -> show_transactions_by_type
-    ;   Choice == 4 -> show_transactions_by_date
-    ;   Choice == 5 -> true
+    ;   Choice == 3 -> true
     ;   write('Invalid choice'), nl, view_transactions
     ).
 
+% Fixed show_all_transactions predicate
 show_all_transactions :-
     findall(transaction(Customer, Type, Amount, TimeStamp, Status),
             transaction(Customer, Type, Amount, TimeStamp, Status),
             Transactions),
     (   Transactions == []
     ->  write('No transactions found.'), nl
-    ;   format_transactions(Transactions)
+    ;   write('=== ALL TRANSACTIONS ==='), nl,
+        format_transactions(Transactions)
     ).
 
+% Fixed show_customer_transactions predicate
 show_customer_transactions :-
     write('Enter Customer ID: '), read(CustomerID),
     findall(transaction(CustomerID, Type, Amount, TimeStamp, Status),
@@ -364,134 +404,24 @@ show_customer_transactions :-
             Transactions),
     (   Transactions == []
     ->  write('No transactions found for customer '), write(CustomerID), nl
-    ;   format_transactions(Transactions)
+    ;   write('=== TRANSACTIONS FOR CUSTOMER '), write(CustomerID), write(' ==='), nl,
+        format_transactions(Transactions)
     ).
 
-show_transactions_by_type :-
-    write('Enter Transaction Type (deposit/withdrawal/transfer_in/transfer_out): '), 
-    read(Type),
-    findall(transaction(Customer, Type, Amount, TimeStamp, Status),
-            transaction(Customer, Type, Amount, TimeStamp, Status),
-            Transactions),
-    (   Transactions == []
-    ->  write('No transactions found of type '), write(Type), nl
-    ;   format_transactions(Transactions)
-    ).
-
-show_transactions_by_date :-
-    write('Enter Start Date (YYYY-MM-DD): '), read(StartDate),
-    write('Enter End Date (YYYY-MM-DD): '), read(EndDate),
-    findall(transaction(Customer, Type, Amount, TimeStamp, Status),
-            (transaction(Customer, Type, Amount, TimeStamp, Status),
-             parse_time(TimeStamp, Stamp),
-             stamp_date_time(Stamp, DateTime, local),
-             date_time_value(date, DateTime, Date),
-             Date @>= StartDate,
-             Date @=< EndDate),
-            Transactions),
-    (   Transactions == []
-    ->  write('No transactions found between '), write(StartDate), 
-        write(' and '), write(EndDate), nl
-    ;   format_transactions(Transactions)
-    ).
-
+% Fixed format_transactions predicate with proper date handling
 format_transactions([]).
 format_transactions([transaction(Customer, Type, Amount, TimeStamp, Status)|Rest]) :-
-    parse_time(TimeStamp, Stamp),
-    stamp_date_time(Stamp, DateTime, local),
-    format_time(atom(FormattedTime), '%Y-%m-%d %H:%M:%S', DateTime),
+    (   float(TimeStamp) 
+    ->  stamp_date_time(TimeStamp, DateTime, local),
+        format_time(atom(FormattedTime), '%Y-%m-%d %H:%M:%S', DateTime)
+    ;   FormattedTime = TimeStamp  % Fallback if not a timestamp
+    ),
     write('Customer: '), write(Customer),
     write(' | Type: '), write(Type),
     write(' | Amount: $'), format('~2f', [Amount]),
     write(' | Time: '), write(FormattedTime),
     write(' | Status: '), write(Status), nl,
     format_transactions(Rest).
-
-% ----------------------------
-% FRAUD DETECTION MODULE
-% ----------------------------
-
-fraud_detection(User) :-
-    check_access(User, [admin,manager]),
-    nl, write('=== FRAUD DETECTION ==='), nl,
-    write('1. Detect large transactions'), nl,
-    write('2. Detect rapid transactions'), nl,
-    write('3. Back to Main Menu'), nl,
-    write('Select option: '),
-    read(Choice),
-    (Choice =:= 3 -> show_main_menu(User) ; handle_fraud_choice(Choice, User)).
-
-handle_fraud_choice(1, User) :-
-    write('Enter threshold amount: '), read(Threshold),
-    findall(transaction(Customer, Type, Amount, TimeStamp, _),
-            (transaction(Customer, Type, Amount, TimeStamp, 'completed'),
-             Amount >= Threshold),
-            LargeTransactions),
-    (LargeTransactions = [] ->
-        write('No suspiciously large transactions found.'), nl
-    ;
-        nl, write('=== LARGE TRANSACTIONS ==='), nl,
-        format_transactions(LargeTransactions),
-        nl, write('Total found: '), length(LargeTransactions, Count), write(Count), nl
-    ),
-    fraud_detection(User).
-
-handle_fraud_choice(2, User) :-
-    write('Enter time window in minutes: '), read(Minutes),
-    write('Enter minimum number of transactions: '), read(MinTransactions),
-    findall(Customer,
-            (transaction(Customer, _, _, TimeStamp1, 'completed'),
-             transaction(Customer, _, _, TimeStamp2, 'completed'),
-             Customer \= Customer, % Ensure different transactions
-             parse_time(TimeStamp1, Stamp1),
-             parse_time(TimeStamp2, Stamp2),
-             Diff is abs(Stamp1 - Stamp2),
-             Diff =< Minutes * 60,
-             count_transactions(Customer, Minutes, TimeStamp1, Count),
-             Count >= MinTransactions),
-            Customers),
-    sort(Customers, UniqueCustomers),
-    (UniqueCustomers = [] ->
-        write('No customers with rapid transactions found.'), nl
-    ;
-        nl, write('=== CUSTOMERS WITH RAPID TRANSACTIONS ==='), nl,
-        print_customers_with_counts(UniqueCustomers, Minutes)
-    ),
-    fraud_detection(User).
-
-handle_fraud_choice(_, User) :-
-    write('Invalid choice'), nl,
-    fraud_detection(User).
-
-count_transactions(Customer, Minutes, ReferenceTime, Count) :-
-    parse_time(ReferenceTime, RefStamp),
-    findall(1,
-            (transaction(Customer, _, _, TimeStamp, 'completed'),
-             parse_time(TimeStamp, Stamp),
-             abs(Stamp - RefStamp) =< Minutes * 60),
-            Transactions),
-    length(Transactions, Count).
-
-print_customers_with_counts([], _).
-print_customers_with_counts([Customer|Rest], Minutes) :-
-    findall(transaction(Customer, Type, Amount, TimeStamp, _),
-            transaction(Customer, Type, Amount, TimeStamp, 'completed'),
-            Transactions),
-    find_min_max_times(Transactions, MinTime, MaxTime),
-    format_time(atom(FormattedMin), '%Y-%m-%d %H:%M:%S', MinTime),
-    format_time(atom(FormattedMax), '%Y-%m-%d %H:%M:%S', MaxTime),
-    write('Customer: '), write(Customer), nl,
-    write('Transaction count: '), length(Transactions, Count), write(Count), nl,
-    write('Time window: '), write(FormattedMin), write(' to '), write(FormattedMax), nl, nl,
-    print_customers_with_counts(Rest, Minutes).
-
-find_min_max_times(Transactions, MinTime, MaxTime) :-
-    findall(Time,
-            (member(transaction(_, _, _, TimeStamp, _), Transactions),
-            parse_time(TimeStamp, Time)),
-            Times),
-    min_list(Times, MinTime),
-    max_list(Times, MaxTime).
 
 % ----------------------------
 % REPORTS & ANALYTICS MODULE
