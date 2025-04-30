@@ -102,17 +102,45 @@ view_all_customers :-
         nl, write('Total customers: '), write(Count), nl
     ).
 
-
 add_customer :-
-    write('Enter Customer ID: '), read(ID),
+    % Get all customer details except balance
+        get_unique_id(ID),
     write('Full Name: '), read(Name),
     write('Date of Birth (YYYY-MM-DD): '), read(DOB),
     write('Address: '), read(Address),
     write('Phone: '), read(Phone),
     write('KYC Status (verified/unverified): '), read(KYC),
-    write('Initial Balance: '), read(Balance),
+    
+    % Get balance with validation
+    get_valid_balance(Balance),
+    
+    % Assert the customer if balance is valid
     assert(customer(ID, Name, DOB, Address, Phone, KYC, Balance)),
     write('Customer added successfully!'), nl.
+
+get_unique_id(ID) :-
+    repeat,
+    write('Enter Customer ID: '), 
+    read(ID),
+    (   customer(ID, _, _, _, _, _, _)
+    ->  write('Error: Customer ID already exists! Try again.'), nl,
+        fail
+    ;   !  % Cut to commit to this unique ID
+    ).
+
+
+% Helper predicate to get valid balance
+get_valid_balance(Balance) :-
+    repeat,  % Creates a choice point for retry
+    write('Initial Balance (must be positive): '), 
+    read(Balance),
+    (   number(Balance), Balance > 0 
+    ->  !  % Cut to commit to this solution
+    ;   write('Error: Balance must be positive. Please try again.'), nl,
+        fail  % Triggers repeat
+    ).
+
+
 
 search_customers :-
     nl, write('=== SEARCH CUSTOMERS ==='), nl,
@@ -158,9 +186,9 @@ update_customer :-
         write('3. Address: '), write(OldAddress), nl,
         write('4. Phone: '), write(OldPhone), nl,
         write('5. KYC Status: '), write(OldKYC), nl,
-        write('6. Balance: '), write(OldBalance), nl, nl,
+
         
-        write('Enter field number to update (1-6, 0 to cancel): '), read(Field),
+        write('Enter field number to update (1-5, 0 to cancel): '), read(Field),
         (Field =:= 0 -> 
             write('Update canceled.'), nl
         ; Field >= 1, Field =< 6 ->
@@ -204,11 +232,6 @@ update_customer_field(ID, 5) :-
     retract(customer(ID, _, _, _, _, _, _)),
     assert(customer(ID, Name, DOB, Address, Phone, NewKYC, Balance)).
 
-update_customer_field(ID, 6) :-
-    write('Enter new Balance: '), read(NewBalance),
-    customer(ID, Name, DOB, Address, Phone, KYC, _),
-    retract(customer(ID, _, _, _, _, _, _)),
-    assert(customer(ID, Name, DOB, Address, Phone, KYC, NewBalance)).
 
 delete_customer :-
     write('Enter Customer ID to delete: '), read(ID),
