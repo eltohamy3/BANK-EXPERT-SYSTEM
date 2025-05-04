@@ -27,21 +27,21 @@ initialize_system :-
     % Sample customers
     /* assert() => dynamically adds a new clause (fact or rule) to the database during runtime */
     /* An atom is a data type in Prolog representing a constant, symbolic value */
-    assert(customer('cust001', 'John Doe', '555-1234', verified)),
-    assert(customer('cust002', 'Jane Smith', '555-5678', verified)),
-    assert(customer('cust003', 'Bob Johnson', '555-9012', unverified)),
+    assert(customer('cust001', 'Ali'     , '01234567896', verified)),
+    assert(customer('cust002', 'Hassan'  , '01151357669', verified)),
+    assert(customer('cust003', 'Mohamed' , '01065978246', unverified)),
     
     % Sample accounts (customers can have multiple accounts)
-    assert(account('acct001', 'cust001', 'checking', 5000.0)),
-    assert(account('acct002', 'cust001', 'savings', 15000.0)),
-    assert(account('acct003', 'cust002', 'checking', 2500.0)),
-    assert(account('acct004', 'cust002', 'savings', 10000.0)),
-    assert(account('acct005', 'cust003', 'checking', 1000.0)),
+    assert(account('acct1', 'cust001', 'checking', 5000.0)),
+    assert(account('acct2', 'cust001', 'savings', 15000.0)),
+    assert(account('acct3', 'cust002', 'checking', 2500.0)),
+    assert(account('acct4', 'cust002', 'savings', 10000.0)),
+    assert(account('acct5', 'cust003', 'checking', 1000.0)),
     
     % Sample users
     assert(user(admin, 'bank', [admin])),
-    assert(user(teller1, 'teller123', [teller])),
-    assert(user(manager1, 'mgr456', [manager])).
+    assert(user(teller, 'bank', [teller])),
+    assert(user(manager, 'bank', [manager])).
 
 % Authentication system
 authenticate_user :-
@@ -79,15 +79,16 @@ show_main_menu(Username) :-
 % Service routing
 handle_service(0, _) :- 
     write('Logging out...'), nl,nl, nl,nl,
-    write('*****************************************************'), nl,nl,-``
+    write('*****************************************************'), nl,nl,
     /* ?????? */
     retractall(current_user(_, _)),
-    start_bank_expert.
+    authenticate_user.
+   % start_bank_expert. % --->>>
 
 handle_service(1, User) :- customer_management(User).
 handle_service(2, User) :- account_management(User).
 handle_service(3, User) :- transaction_processing(User).
-handle_service(4, User) :- reports_analytics(User).``
+handle_service(4, User) :- reports_analytics(User).
 handle_service(_, User) :- 
     write('Invalid choice'), nl,nl, 
     write('*****************************************************'), nl,nl,
@@ -98,7 +99,7 @@ handle_service(_, User) :-
 % ----------------------------
 
 customer_management(User) :-
-    check_access(User, [admin,manager]),
+    check_access(User, [admin]),
     nl,nl, write('======= CUSTOMER MANAGEMENT ======='), nl,nl,
     write('*****************************************************'), nl,nl,
     write('1. Add Customer'), nl,nl,
@@ -112,6 +113,7 @@ customer_management(User) :-
     read(Choice),
     (Choice =:= 6 -> show_main_menu(User) ; handle_customer_choice(Choice, User)).
 
+/* add a customer and return to the customer management */
 handle_customer_choice(1, User) :- add_customer, customer_management(User).
 handle_customer_choice(2, User) :- view_all_customers, customer_management(User).
 handle_customer_choice(3, User) :- search_customers, customer_management(User).
@@ -139,6 +141,10 @@ add_customer :-
 view_all_customers :-
     nl,nl, write('======= ALL CUSTOMERS ======='), nl,nl,
     write('*****************************************************'), nl,nl,
+    /* findall(+Template, +Goal, -List) */
+    /* Template: Defines the output structure for each solution. */
+    /* Goal: The query to execute (finds all customer facts in the database). */
+    /* Output list storing all solutions. */
     findall(customer(ID, Name, Contact, KYC),
            customer(ID, Name, Contact, KYC),
            Customers),
@@ -153,12 +159,14 @@ view_all_customers :-
     ).
 
 print_customers([]).
+/* [Head(customer) | Tail] */
 print_customers([customer(ID, Name, Contact, KYC)|Rest]) :-
     nl,nl, write('ID: '), write(ID), nl,nl,
     write('Name: '), write(Name), nl,nl,
     write('Contact: '), write(Contact), nl,nl,
     write('KYC Status: '), write(KYC), nl,nl,
-    % Show customer's accounts
+    % Show customers accounts
+    /* find all customers info (AccID, Type, Balance) with that ID */
     findall(account(AccID, Type, Balance),
             (account(AccID, ID, Type, Balance)),
             Accounts),
@@ -181,6 +189,12 @@ search_customers :-
     write('Enter search term (ID or Name): '), read(Term),
     findall(customer(ID, Name, Contact, KYC),
            (customer(ID, Name, Contact, KYC),
+           /* sub_atom(+Atom, ?Before, ?Length, ?After, ?SubAtom) */
+           /* Atom think of it like a string */
+           /* SubAtom think of it like a sub string to search for */
+           /* Before: # chars before each subAtom */
+           /* Length: # chars of each subAtom */
+           /* After: # chars after each subAtom */
             (sub_atom(ID, _, _, _, Term) ; sub_atom(Name, _, _, _, Term))),
            Customers),
     (Customers = [] -> 
@@ -235,10 +249,9 @@ update_customer :-
 delete_customer :-
     write('Enter Customer ID to delete: '), read(ID),
     (customer(ID, _, _, _) ->
-        % First delete all accounts
         findall(AccID, account(AccID, ID, _, _), Accounts),
+        /* member loops through Accounts without manual recursion. */
         foreach(member(Acc, Accounts), retract(account(Acc, ID, _, _))),
-        % Then delete customer
         retract(customer(ID, _, _, _)),
         write('Customer and all associated accounts deleted.'), nl,nl,
         write('*****************************************************'), nl
@@ -252,7 +265,7 @@ delete_customer :-
 % ----------------------------
 
 account_management(User) :-
-    check_access(User, [admin,manager,teller]),
+    check_access(User, [admin]),
     nl,nl, write('======= ACCOUNT MANAGEMENT ======='), nl,nl,
     write('*****************************************************'), nl,nl,
     write('1. Open New Account'), nl,nl,
@@ -299,6 +312,7 @@ generate_account_id(AccID) :-
     findall(Num, account(Acc, _, _, _), Accounts),
     length(Accounts, Count),
     NextNum is Count + 1,
+    /* store the result as an atom named AccID */
     format(atom(AccID), 'acct~d', [NextNum]).
 
 close_account :-
@@ -373,7 +387,7 @@ print_all_accounts([account(AccID, CustID, Type, Balance)|Rest]) :-
 % ----------------------------
 
 transaction_processing(User) :-
-    check_access(User, [admin,manager,teller]),
+    check_access(User, [teller]),
     nl,nl, write('======= TRANSACTION PROCESSING ======='), nl,nl,
     write('*****************************************************'), nl,nl,
     write('1. Deposit'), nl,nl,
@@ -403,6 +417,7 @@ process_deposit :-
             NewBalance is Balance + Amount,
             retract(account(AccID, CustID, Type, _)),
             assert(account(AccID, CustID, Type, NewBalance)),
+
             generate_transaction_id(TxnID),
             get_time(TimeStamp),
             assert(transaction(TxnID, AccID, 'deposit', Amount, TimeStamp, 'Deposit to account')),
@@ -427,6 +442,7 @@ process_withdrawal :-
                 NewBalance is Balance - Amount,
                 retract(account(AccID, CustID, Type, _)),
                 assert(account(AccID, CustID, Type, NewBalance)),
+
                 generate_transaction_id(TxnID),
                 get_time(TimeStamp),
                 assert(transaction(TxnID, AccID, 'withdrawal', Amount, TimeStamp, 'Withdrawal from account')),
@@ -459,17 +475,14 @@ process_transfer :-
             write('Amount to transfer: '), read(Amount),
             (Amount > 0 ->
                 (FromBalance >= Amount ->
-                    % Update source account
                     NewFromBalance is FromBalance - Amount,
                     retract(account(FromAcc, FromCust, FromType, _)),
                     assert(account(FromAcc, FromCust, FromType, NewFromBalance)),
                     
-                    % Update destination account
                     NewToBalance is ToBalance + Amount,
                     retract(account(ToAcc, ToCust, ToType, _)),
                     assert(account(ToAcc, ToCust, ToType, NewToBalance)),
                     
-                    % Record transactions
                     generate_transaction_id(TxnID),
                     get_time(TimeStamp),
                     assert(transaction(TxnID, FromAcc, ToAcc, Amount, TimeStamp, 'Account transfer')),
@@ -568,7 +581,7 @@ show_customer_transactions :-
         write('*****************************************************'), nl,nl,
         print_transactions(Transactions)
     ).
-
+ 
 print_transactions([]).
 print_transactions([transaction(TxnID, From, To, Amount, Time, Desc)|Rest]) :-
     stamp_date_time(Time, DateTime, local),
@@ -596,7 +609,7 @@ print_transactions([transaction(TxnID, From, To, Amount, Time, Desc)|Rest]) :-
 % ----------------------------
 
 reports_analytics(User) :-
-    check_access(User, [admin,manager]),
+    check_access(User, [manager]),
     nl,nl, write('======= REPORTS & ANALYTICS ======='), nl,nl,
     write('*****************************************************'), nl,nl,
     write('1. Customer Summary Report'), nl,nl,
@@ -695,13 +708,13 @@ transaction_summary_report :-
         write('Largest Transaction: $'), format('~2f', [MaxAmount]), nl,nl,
         
         % Transaction type breakdown
-        findall(Type, transaction(_, _, Type, _, _, _), Types),
-        aggregate_all(count, member(deposit, Types), DepositCount),
-        aggregate_all(count, member(withdrawal, Types), WithdrawalCount),
-        aggregate_all(count, transaction(_, _, To, _, _, _), atom(To), TransferCount),
-        write('Deposits: '), write(DepositCount), nl,nl,
-        write('Withdrawals: '), write(WithdrawalCount), nl,nl,
-        write('Transfers: '), write(TransferCount), nl,nl,
+        % findall(Type, transaction(_, _, Type, _, _, _), Types),
+        % aggregate_all(count, member(deposit, Types), DepositCount),
+        % aggregate_all(count, member(withdrawal, Types), WithdrawalCount),
+        % aggregate_all(count, transaction(_, _, To, _, _, _), atom(To), TransferCount),
+        % write('Deposits: '), write(DepositCount), nl,nl,
+        % write('Withdrawals: '), write(WithdrawalCount), nl,nl,
+        % write('Transfers: '), write(TransferCount), nl,nl,
         write('*****************************************************'), nl
     ).
 
@@ -726,11 +739,16 @@ kyc_status_report :-
 % HELPER PREDICATES
 % ----------------------------
 
+/* checks whether the given User has at least one of the RequiredRoles */
 check_access(User, RequiredRoles) :-
+    /* Retrieves the list of roles (Roles (variable)) associated with the given User. */
     current_user(User, Roles),
+    /* a built-in predicate intersection(+List1, +List2, -Intersection) */
     (intersection(Roles, RequiredRoles, []) ->
         write('Access denied!'), nl,nl, 
         write('*****************************************************'), nl,nl,
+        /* fail forces backtracking */
+        /* go back to the previous choice point and look for alternative solutions */
         fail
     ;
         true
